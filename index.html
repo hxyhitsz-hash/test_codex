@@ -105,6 +105,21 @@
           <span class="tag">RoPE / ALiBi / T5</span>
         </button>
         <div class="accordion__panel" data-accordion-panel>
+          <pre><code class="language-python">def rope_apply(q, k):
+    # 旋转位置编码（简化）
+    cos, sin = build_angles(q)
+    q = rotate_pairs(q, cos, sin)
+    k = rotate_pairs(k, cos, sin)
+    return q, k
+
+def alibi_bias(num_heads, seq_len):
+    slopes = get_head_slopes(num_heads)
+    pos = arange(seq_len)
+    return slopes[:, None, None] * (pos[None, :] - pos[:, None])
+
+def t5_relative_position_bias(num_heads, seq_len, num_buckets=32):
+    rel = bucketize_relative_positions(seq_len, num_buckets)
+    return bias_table[num_heads, num_buckets][..., rel]</code></pre>
           <ul>
             <li>RoPE：旋转矩阵注入位置信息，适合长上下文。</li>
             <li>ALiBi：线性偏置，无需显式位置嵌入。</li>

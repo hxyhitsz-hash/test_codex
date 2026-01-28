@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 面试高频代码速查</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="hero__content">
+      <p class="eyebrow">AI Interview Cheatsheet</p>
+      <h1>AI 面试高频手写代码速查</h1>
+      <p class="hero__subtitle">
+        面向大模型、CV、RL 与工程实践的高频考点，整理为可读、可复制的前端静态页面。
+        无需后端即可部署到 GitHub Pages。
+      </p>
+      <div class="hero__cta">
+        <button class="primary" data-scroll="#overview">快速浏览</button>
+        <button class="ghost" data-scroll="#sections">查看全部模块</button>
+      </div>
+    </div>
+    <div class="hero__card">
+      <h3>包含内容</h3>
+      <ul>
+        <li>注意力机制（MHA/GQA/MQA/Flash/Linear）</li>
+        <li>位置编码（RoPE/ALiBi/T5 相对位置）</li>
+        <li>优化器、损失函数与归一化</li>
+        <li>CV 目标检测、分割、主干模块</li>
+        <li>RL 算法与 RLHF 链路</li>
+        <li>长文本与高效微调（LoRA/QLoRA）</li>
+      </ul>
+      <p class="note">提示：点击卡片展开代码示例。</p>
+    </div>
+  </header>
+
+  <main>
+    <section id="overview" class="section">
+      <div class="section__title">
+        <h2>概览</h2>
+        <p>用结构化的模块总结，便于复习与面试前快速回顾。</p>
+      </div>
+      <div class="grid">
+        <article class="summary">
+          <h3>大模型注意力</h3>
+          <p>覆盖 MHA/GQA/MQA、FlashAttention 核心思想、Linear/Multi-scale attention。</p>
+        </article>
+        <article class="summary">
+          <h3>优化器 & 损失</h3>
+          <p>从 SGD/Momentum/AdamW 到 LAMB/LARS，含标签平滑、Focal、Dice 等常用损失。</p>
+        </article>
+        <article class="summary">
+          <h3>计算机视觉</h3>
+          <p>IoU 系列、NMS、FPN、ROI Align、U-Net、ResNet Block。</p>
+        </article>
+        <article class="summary">
+          <h3>强化学习 & RLHF</h3>
+          <p>DQN、A2C、DDPG、TD3、PPO/DPO/SFT/RM，全链路可手写。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="sections" class="section">
+      <div class="section__title">
+        <h2>核心模块 + 代码骨架</h2>
+        <p>点击卡片查看精简版实现与注释说明。</p>
+      </div>
+
+      <div class="accordion" data-accordion>
+        <button class="accordion__item" data-accordion-trigger>
+          <span>MHA / GQA / MQA</span>
+          <span class="tag">Attention</span>
+        </button>
+        <div class="accordion__panel" data-accordion-panel>
+          <pre><code class="language-python">def gqa_attention(q, k, v, num_heads, num_kv_groups):
+    # Q 头更多，K/V 头更少
+    q = split_heads(q, num_heads)
+    k = split_heads(k, num_kv_groups)
+    v = split_heads(v, num_kv_groups)
+    k = repeat_groups(k, num_heads // num_kv_groups)
+    v = repeat_groups(v, num_heads // num_kv_groups)
+    attn = softmax(q @ k.transpose(-2, -1))
+    return merge_heads(attn @ v)</code></pre>
+          <p class="panel__note">复杂度：MHA &gt; GQA &gt; MQA（K/V 头数减少）。</p>
+        </div>
+
+        <button class="accordion__item" data-accordion-trigger>
+          <span>FlashAttention 核心思路</span>
+          <span class="tag">Memory</span>
+        </button>
+        <div class="accordion__panel" data-accordion-panel>
+          <pre><code class="language-python">def flash_block(q, k, v, block_size=64):
+    # 分块 + 在线 softmax
+    for q_block in blocks(q):
+        m, l, acc = init_stats(q_block)
+        for k_block, v_block in blocks(k, v):
+            scores = q_block @ k_block.T
+            m, l, acc = online_softmax_update(scores, v_block, m, l, acc)
+        yield acc / l</code></pre>
+          <p class="panel__note">要点：不保存完整注意力矩阵，省显存。</p>
+        </div>
+
+        <button class="accordion__item" data-accordion-trigger>
+          <span>位置编码对比</span>
+          <span class="tag">RoPE / ALiBi / T5</span>
+        </button>
+        <div class="accordion__panel" data-accordion-panel>
+          <pre><code class="language-python">def rope_apply(q, k):
+    # 旋转位置编码（简化）
+    cos, sin = build_angles(q)
+    q = rotate_pairs(q, cos, sin)
+    k = rotate_pairs(k, cos, sin)
+    return q, k
+
+def alibi_bias(num_heads, seq_len):
+    slopes = get_head_slopes(num_heads)
+    pos = arange(seq_len)
+    return slopes[:, None, None] * (pos[None, :] - pos[:, None])
+
+def t5_relative_position_bias(num_heads, seq_len, num_buckets=32):
+    rel = bucketize_relative_positions(seq_len, num_buckets)
+    return bias_table[num_heads, num_buckets][..., rel]</code></pre>
+          <ul>
+            <li>RoPE：旋转矩阵注入位置信息，适合长上下文。</li>
+            <li>ALiBi：线性偏置，无需显式位置嵌入。</li>
+            <li>T5：bucket 化相对位置，更适合长序列泛化。</li>
+          </ul>
+        </div>
+
+        <button class="accordion__item" data-accordion-trigger>
+          <span>优化器更新公式</span>
+          <span class="tag">AdamW / LAMB</span>
+        </button>
+        <div class="accordion__panel" data-accordion-panel>
+          <pre><code class="language-python"># AdamW: 权重衰减解耦
+p = p * (1 - lr * wd) - lr * m_hat / (sqrt(v_hat) + eps)
+
+# LAMB: trust ratio
+r = ||w|| / ||update||
+update = r * (m_hat / (sqrt(v_hat) + eps) + wd * w)</code></pre>
+        </div>
+
+        <button class="accordion__item" data-accordion-trigger>
+          <span>目标检测 IoU / NMS</span>
+          <span class="tag">CV</span>
+        </button>
+        <div class="accordion__panel" data-accordion-panel>
+          <pre><code class="language-python">def diou(box1, box2):
+    iou = iou(box1, box2)
+    center_dist = ||c1 - c2||^2
+    diag = ||c_enclosing||^2
+    return iou - center_dist / diag</code></pre>
+          <p class="panel__note">GIoU 解决无重叠问题，CIoU 加入长宽比惩罚。</p>
+        </div>
+
+        <button class="accordion__item" data-accordion-trigger>
+          <span>强化学习 DQN / PPO / DPO</span>
+          <span class="tag">RLHF</span>
+        </button>
+        <div class="accordion__panel" data-accordion-panel>
+          <pre><code class="language-python"># DPO loss
+loss = -logsigmoid(beta * (logp_chosen - logp_rejected))
+
+# PPO clip
+ratio = exp(logp - logp_old)
+loss = -min(ratio * adv, clamp(ratio) * adv)</code></pre>
+        </div>
+
+        <button class="accordion__item" data-accordion-trigger>
+          <span>高效微调 LoRA / QLoRA</span>
+          <span class="tag">Engineering</span>
+        </button>
+        <div class="accordion__panel" data-accordion-panel>
+          <pre><code class="language-python"># LoRA: ΔW = BA
+out = x @ W + (x @ A.T @ B.T) * (alpha / r)
+
+# QLoRA: 4-bit 量化 + LoRA</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section__title">
+        <h2>如何部署到 GitHub Pages</h2>
+        <ol class="steps">
+          <li>把本页面文件（<code>index.html</code>、<code>styles.css</code>、<code>script.js</code>）提交到仓库。</li>
+          <li>在 GitHub 仓库 Settings → Pages 中选择 “main / root”。</li>
+          <li>等待 Pages 构建完成，访问生成的链接即可。</li>
+        </ol>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>© 2024 AI Interview Cheatsheet. Static HTML/CSS/JS only.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
